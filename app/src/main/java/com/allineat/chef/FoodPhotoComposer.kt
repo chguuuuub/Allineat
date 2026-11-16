@@ -140,50 +140,61 @@ object FoodPhotoComposer {
             .replace("&amp;", "&").replace(Regex("\\s+"), " ").trim()
 
     private fun composePlate(photos: List<Pair<IngredientPhotoInput, Bitmap>>): Bitmap {
+        // Do not pretend unrelated ingredient photos are a cooked dish.
+        // Keep each real ingredient photograph intact in a clearly labelled tile.
         val width = 900
-        val height = 620
+        val columns = 2
+        val margin = 28f
+        val gap = 18f
+        val cardWidth = (width - margin * 2 - gap) / columns
+        val imageHeight = 220f
+        val labelHeight = 68f
+        val cardHeight = imageHeight + labelHeight
+        val rows = (photos.size + columns - 1) / columns
+        val height = (margin * 2 + rows * cardHeight + (rows - 1).coerceAtLeast(0) * gap).toInt().coerceAtLeast(360)
         val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
-        canvas.drawColor(Color.rgb(239, 234, 224))
-        val centerX = width / 2f
-        val centerY = height / 2f
-        val plateRadius = 274f
-        val shadow = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(190, 181, 166) }
-        canvas.drawCircle(centerX, centerY + 8f, plateRadius + 8f, shadow)
-        val plate = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-        canvas.drawCircle(centerX, centerY, plateRadius, plate)
-        plate.color = Color.rgb(247, 244, 237)
-        canvas.drawCircle(centerX, centerY, plateRadius - 13f, plate)
+        canvas.drawColor(Color.rgb(242, 239, 231))
 
-        val count = photos.size
+        val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+        val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(42, 48, 43)
+            textSize =  thirtySp()
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        }
+        val amountPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(105, 111, 103)
+            textSize = 25f
+            typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
+        }
+
         photos.forEachIndexed { index, entry ->
-            val (picked, bitmap) = entry
-            val angle = (2.0 * Math.PI * index / count) - Math.PI / 2.0
-            val radius = if (count <= 2) 62f else 112f
-            val cx = centerX + cos(angle).toFloat() * radius
-            val cy = centerY + sin(angle).toFloat() * radius
-            val itemScale = (picked.amount.toFloatOrNull() ?: 100f).coerceIn(20f, 500f) / 100f
-            val w = (220f * min(1.18f, 0.78f + itemScale * 0.22f)).coerceIn(150f, 255f)
-            val h = w * 0.64f
-            val rect = RectF(cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f)
-            val oval = Path().apply { addOval(rect, Path.Direction.CW) }
-            val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(45, 40, 30, 20) }
-            canvas.drawOval(RectF(rect.left + 2f, rect.top + 5f, rect.right + 2f, rect.bottom + 5f), edge)
+            val (item, bitmap) = entry
+            val col = index % columns
+            val row = index / columns
+            val left = margin + col * (cardWidth + gap)
+            val top = margin + row * (cardHeight + gap)
+            val card = RectF(left, top, left + cardWidth, top + cardHeight)
+            canvas.drawRoundRect(card, 22f, 22f, cardPaint)
+
+            val imageRect = RectF(left + 8f, top + 8f, left + cardWidth - 8f, top + imageHeight)
+            val clip = Path().apply { addRoundRect(imageRect, 16f, 16f, Path.Direction.CW) }
             canvas.save()
-            canvas.clipPath(oval)
-            val source = centerCropRect(bitmap, w / h)
-            val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-            canvas.drawBitmap(bitmap, source, rect, imagePaint)
+            canvas.clipPath(clip)
+            val source = centerCropRect(bitmap, imageRect.width() / imageRect.height())
+            canvas.drawBitmap(bitmap, source, imageRect, imagePaint)
             canvas.restore()
-            val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.argb(90, 255, 255, 255)
-                style = Paint.Style.STROKE
-                strokeWidth = 2f
-            }
-            canvas.drawOval(rect, border)
+
+            val baseline = top + imageHeight + 35f
+            canvas.drawText(item.name, left + 18f, baseline, labelPaint)
+            val amount = if (item.amount.isBlank()) "用量未填写" else "${item.amount} g"
+            canvas.drawText(amount, left + 18f, baseline + 31f, amountPaint)
         }
         return output
     }
+
+    private fun thirtySp(): Float = 30f
 
     private fun centerCropRect(bitmap: Bitmap, targetRatio: Float): Rect {
         val sourceRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
