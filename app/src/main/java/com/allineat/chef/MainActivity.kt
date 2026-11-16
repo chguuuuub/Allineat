@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +17,13 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.PI
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -75,7 +83,7 @@ private fun AllineatApp() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp)) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Restaurant, null, tint = androidx.compose.ui.graphics.Color.White)
+                            Text("G", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
                         }
                     }
                     Spacer(Modifier.width(12.dp))
@@ -175,6 +183,7 @@ private fun AllineatApp() {
                     Card(shape = RoundedCornerShape(18.dp)) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                             Text("生成结果", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            DishArtwork(picked.toList(), cuisine)
                             Text(dish, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                             Text("摆盘：$vessel · ${cuisine}风格", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             HorizontalDivider()
@@ -185,6 +194,60 @@ private fun AllineatApp() {
                 }
                 Text("Allineat · Food for everyone", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
+        }
+    }
+}
+
+@Composable
+private fun DishArtwork(items: List<PickedFood>, cuisine: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(214.dp),
+        shape = RoundedCornerShape(18.dp),
+        color = if (cuisine == "西式") Color(0xFFEDE7DB) else Color(0xFFF0E9DD)
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+            val plateRadius = minOf(size.width * 0.29f, size.height * 0.43f)
+            drawCircle(Color(0xFFD6CBB9), plateRadius + 7f, Offset(cx, cy))
+            drawCircle(Color.White, plateRadius, Offset(cx, cy))
+            drawCircle(Color(0xFFF7F1E7), plateRadius - 8f, Offset(cx, cy))
+            drawCircle(Color(0xFFE8DFD1), plateRadius - 13f, Offset(cx, cy), style = Stroke(width = 1.5f))
+            val count = items.size.coerceAtLeast(1)
+            items.forEachIndexed { index, item ->
+                val seed = kotlin.math.abs(item.food.name.hashCode())
+                val angle = (2.0 * PI * index / count) - PI / 2.0
+                val ring = plateRadius * (0.43f + (seed % 18) / 100f)
+                val x = cx + cos(angle).toFloat() * ring
+                val y = cy + sin(angle).toFloat() * ring
+                val color = when (item.food.category) {
+                    "果蔬" -> if (seed % 2 == 0) Color(0xFF6F9D50) else Color(0xFFE5A34B)
+                    "菌菇" -> Color(0xFF9B7256)
+                    "肉禽" -> Color(0xFFB95E49)
+                    "鱼类", "海鲜" -> Color(0xFFE58D78)
+                    "蛋类" -> Color(0xFFF0C85A)
+                    else -> Color(0xFFD3A66B)
+                }
+                val w = plateRadius * (0.25f + (seed % 8) / 100f)
+                val h = plateRadius * 0.16f
+                for (piece in 0..3) {
+                    val dx = ((piece % 2) - 0.5f) * w * 0.72f
+                    val dy = ((piece / 2) - 0.5f) * h * 1.5f
+                    drawOval(
+                        color = if (piece == 3) color.copy(alpha = 0.78f) else color,
+                        topLeft = Offset(x + dx - w * 0.32f, y + dy - h * 0.35f),
+                        size = Size(w * 0.64f, h * 0.72f)
+                    )
+                }
+            }
+            for (i in 0..7) {
+                val a = i * PI / 4.0
+                val x = cx + cos(a).toFloat() * plateRadius * 0.68f
+                val y = cy + sin(a).toFloat() * plateRadius * 0.68f
+                drawOval(Color(0xFF54834D), Offset(x - 5f, y - 2f), Size(10f, 4f))
+            }
+            drawCircle(Color(0xFFD7A34D), 3.5f, Offset(cx - plateRadius * 0.22f, cy + plateRadius * 0.12f))
+            drawCircle(Color(0xFFD7A34D), 3f, Offset(cx + plateRadius * 0.18f, cy - plateRadius * 0.2f))
         }
     }
 }
