@@ -19,6 +19,8 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
+data class IngredientPhotoInput(val name: String, val amount: String)
+
 data class FoodPhotoResult(
     val bitmap: Bitmap?,
     val credits: List<String>,
@@ -42,14 +44,14 @@ object FoodPhotoComposer {
         "干香菇" to "dried shiitake mushroom"
     )
 
-    suspend fun create(items: List<PickedFood>, cacheDir: File): FoodPhotoResult = withContext(Dispatchers.IO) {
+    suspend fun create(items: List<IngredientPhotoInput>, cacheDir: File): FoodPhotoResult = withContext(Dispatchers.IO) {
         val photos = mutableListOf<Pair<PickedFood, Bitmap>>()
         val credits = mutableListOf<String>()
         val missing = mutableListOf<String>()
         val dir = File(cacheDir, "commons_food_photos").apply { mkdirs() }
 
         items.forEach { item ->
-            val key = item.food.name
+            val key = item.name
             val cached = File(dir, "$key.jpg")
             val creditFile = File(dir, "$key.txt")
             var bitmap = if (cached.exists()) BitmapFactory.decodeFile(cached.absolutePath) else null
@@ -137,7 +139,7 @@ object FoodPhotoComposer {
         value.replace(Regex("<[^>]*>"), " ").replace("&nbsp;", " ")
             .replace("&amp;", "&").replace(Regex("\\s+"), " ").trim()
 
-    private fun composePlate(photos: List<Pair<PickedFood, Bitmap>>): Bitmap {
+    private fun composePlate(photos: List<Pair<IngredientPhotoInput, Bitmap>>): Bitmap {
         val width = 900
         val height = 620
         val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
