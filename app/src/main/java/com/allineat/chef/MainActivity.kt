@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -16,14 +16,12 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.PI
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -69,6 +67,11 @@ private fun AllineatApp() {
     var cuisine by remember { mutableStateOf("中式") }
     var result by remember { mutableStateOf("") }
     var dish by remember { mutableStateOf("") }
+    var dishImage by remember { mutableStateOf<ImageBitmap?>(null) }
+    var photoStatus by remember { mutableStateOf("生成菜肴后，将从开放素材库获取真实食材照片并在本机合成。") }
+    var photoCredits by remember { mutableStateOf<List<String>>(emptyList()) }
+    var missingPhotos by remember { mutableStateOf<List<String>>(emptyList()) }
+    val scope = rememberCoroutineScope()
 
     MaterialTheme(colorScheme = lightColorScheme(
         primary = androidx.compose.ui.graphics.Color(0xFF28745B),
@@ -168,8 +171,26 @@ private fun AllineatApp() {
 
                 Button(
                     onClick = {
-                        dish = makeName(picked.toList(), cook.toList(), cuisine)
-                        result = makeRecipe(picked.toList(), season.toList(), cook.toList(), vessel, cuisine)
+                        val selected = picked.toList()
+                        dish = makeName(selected, cook.toList(), cuisine)
+                        result = makeRecipe(selected, season.toList(), cook.toList(), vessel, cuisine)
+                        dishImage = null
+                        photoCredits = emptyList()
+                        missingPhotos = emptyList()
+                        photoStatus = "正在获取真实食材照片并进行本地合成……"
+                        scope.launch {
+                            val photoResult = FoodPhotoComposer.create(selected, cacheDir)
+                            dishImage = photoResult.bitmap?.asImageBitmap()
+                            photoCredits = photoResult.credits
+                            missingPhotos = photoResult.missing
+                            photoStatus = if (photoResult.bitmap == null) {
+                                "没有找到可用且许可信息明确的食材照片。请联网后重试，或减少食材种类。"
+                            } else if (photoResult.missing.isNotEmpty()) {
+                                "已合成有照片的食材；以下食材缺少素材：" + photoResult.missing.joinToString("、")
+                            } else {
+                                "已使用真实食材照片完成本地合成。此图是食材照片组合，不是烹饪成品的真实摄影。"
+                            }
+                        }
                     },
                     enabled = picked.isNotEmpty(), modifier = Modifier.fillMaxWidth().height(54.dp),
                     shape = RoundedCornerShape(15.dp)
@@ -183,7 +204,11 @@ private fun AllineatApp() {
                     Card(shape = RoundedCornerShape(18.dp)) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                             Text("生成结果", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                            DishArtwork(picked.toList(), cuisine)
+                            DishPhoto(dishImage, photoStatus)
+                            if (photoCredits.isNotEmpty()) {
+                                Text("照片来源与许可", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                photoCredits.forEach { credit -> Text(credit, fontSize = 10.sp, lineHeight = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            }
                             Text(dish, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                             Text("摆盘：$vessel · ${cuisine}风格", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             HorizontalDivider()
@@ -199,56 +224,27 @@ private fun AllineatApp() {
 }
 
 @Composable
-private fun DishArtwork(items: List<PickedFood>, cuisine: String) {
+private fun DishPhoto(image: ImageBitmap?, status: String) {
     Surface(
-        modifier = Modifier.fillMaxWidth().height(214.dp),
+        modifier = Modifier.fillMaxWidth().height(250.dp),
         shape = RoundedCornerShape(18.dp),
-        color = if (cuisine == "西式") Color(0xFFEDE7DB) else Color(0xFFF0E9DD)
+        color = Color(0xFFEFEAE0)
     ) {
-        Canvas(Modifier.fillMaxSize()) {
-            val cx = size.width / 2f
-            val cy = size.height / 2f
-            val plateRadius = minOf(size.width * 0.29f, size.height * 0.43f)
-            drawCircle(Color(0xFFD6CBB9), plateRadius + 7f, Offset(cx, cy))
-            drawCircle(Color.White, plateRadius, Offset(cx, cy))
-            drawCircle(Color(0xFFF7F1E7), plateRadius - 8f, Offset(cx, cy))
-            drawCircle(Color(0xFFE8DFD1), plateRadius - 13f, Offset(cx, cy), style = Stroke(width = 1.5f))
-            val count = items.size.coerceAtLeast(1)
-            items.forEachIndexed { index, item ->
-                val seed = kotlin.math.abs(item.food.name.hashCode())
-                val angle = (2.0 * PI * index / count) - PI / 2.0
-                val ring = plateRadius * (0.43f + (seed % 18) / 100f)
-                val x = cx + cos(angle).toFloat() * ring
-                val y = cy + sin(angle).toFloat() * ring
-                val color = when (item.food.category) {
-                    "果蔬" -> if (seed % 2 == 0) Color(0xFF6F9D50) else Color(0xFFE5A34B)
-                    "菌菇" -> Color(0xFF9B7256)
-                    "肉禽" -> Color(0xFFB95E49)
-                    "鱼类", "海鲜" -> Color(0xFFE58D78)
-                    "蛋类" -> Color(0xFFF0C85A)
-                    else -> Color(0xFFD3A66B)
-                }
-                val w = plateRadius * (0.25f + (seed % 8) / 100f)
-                val h = plateRadius * 0.16f
-                for (piece in 0..3) {
-                    val dx = ((piece % 2) - 0.5f) * w * 0.72f
-                    val dy = ((piece / 2) - 0.5f) * h * 1.5f
-                    drawOval(
-                        color = if (piece == 3) color.copy(alpha = 0.78f) else color,
-                        topLeft = Offset(x + dx - w * 0.32f, y + dy - h * 0.35f),
-                        size = Size(w * 0.64f, h * 0.72f)
-                    )
-                }
+        if (image != null) {
+            Image(
+                bitmap = image,
+                contentDescription = "根据所选食材照片本地合成的组合图",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(Modifier.fillMaxSize().padding(22.dp), contentAlignment = Alignment.Center) {
+                Text(status, color = Color(0xFF625B50), fontSize = 14.sp, lineHeight = 21.sp)
             }
-            for (i in 0..7) {
-                val a = i * PI / 4.0
-                val x = cx + cos(a).toFloat() * plateRadius * 0.68f
-                val y = cy + sin(a).toFloat() * plateRadius * 0.68f
-                drawOval(Color(0xFF54834D), Offset(x - 5f, y - 2f), Size(10f, 4f))
-            }
-            drawCircle(Color(0xFFD7A34D), 3.5f, Offset(cx - plateRadius * 0.22f, cy + plateRadius * 0.12f))
-            drawCircle(Color(0xFFD7A34D), 3f, Offset(cx + plateRadius * 0.18f, cy - plateRadius * 0.2f))
         }
+    }
+    if (image != null) {
+        Text(status, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
