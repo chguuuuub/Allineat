@@ -112,7 +112,7 @@ private fun AllineatApp() {
                 }
 
                 if (picked.isNotEmpty()) {
-                    Heading("已选食材（\${picked.size}）", "修改数量与加工方式")
+                    Heading("已选食材（${picked.size}）", "修改数量与加工方式")
                     picked.toList().forEach { item ->
                         val idx = picked.indexOfFirst { it.food.name == item.food.name }
                         Card(shape = RoundedCornerShape(14.dp)) {
@@ -176,7 +176,7 @@ private fun AllineatApp() {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                             Text("生成结果", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             Text(dish, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                            Text("摆盘：$vessel · $cuisine风格", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("摆盘：$vessel · ${cuisine}风格", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             HorizontalDivider()
                             Text(result, fontSize = 14.sp, lineHeight = 22.sp)
                             Text("安全提示：本地规则仅提供烹饪建议。肉类、鱼类和海鲜须确认中心充分熟透；实际时间需按厚度、设备和食品安全规范调整。", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
@@ -216,7 +216,7 @@ private fun makeName(items: List<PickedFood>, methods: List<String>, cuisine: St
 private fun makeRecipe(items: List<PickedFood>, season: List<String>, methods: List<String>, vessel: String, cuisine: String): String {
     val out = mutableListOf<String>()
     out += "【食材清单】"
-    items.forEach { out += "• \${it.food.name} \${it.amount.ifBlank { "适量" }}g，\${it.cut}" }
+    items.forEach { out += "• ${it.food.name} ${it.amount.ifBlank { "适量" }}g，${it.cut}" }
     out += ""
     out += "【调味】"
     out += if (season.isEmpty()) "盐及基础调味按口味少量添加" else season.joinToString("、")
@@ -224,7 +224,7 @@ private fun makeRecipe(items: List<PickedFood>, season: List<String>, methods: L
     out += "【制作步骤】"
     out += "1. 将食材清洗干净，按所选切法处理；肉类与即食食材分开操作。"
     out += "2. 按食材成熟速度安排下锅次序，较难熟的先处理，易熟食材后加入。"
-    out += "3. 烹饪流程：\${methods.joinToString(" → ")}。控制火力，分批操作，避免锅内食材过多。"
+    out += "3. 烹饪流程：${methods.joinToString(" → ")}。控制火力，分批操作，避免锅内食材过多。"
     if (methods.any { it in listOf("蒸", "煮", "炖", "煲") }) out += "4. 加热至所有食材达到安全熟度；需要汤汁时可适量加水或高汤。"
     if (methods.any { it in listOf("煎", "炒", "炸") }) out += "4. 锅具预热后下料，适时翻动，注意避免外焦内生。"
     if (methods.any { it in listOf("烤", "焗") }) out += "4. 烤箱预热后烹制，中途观察上色并确认内部熟度。"
