@@ -45,7 +45,7 @@ object FoodPhotoComposer {
     )
 
     suspend fun create(items: List<IngredientPhotoInput>, cacheDir: File): FoodPhotoResult = withContext(Dispatchers.IO) {
-        val photos = mutableListOf<Pair<PickedFood, Bitmap>>()
+        val photos = mutableListOf<Pair<IngredientPhotoInput, Bitmap>>()
         val credits = mutableListOf<String>()
         val missing = mutableListOf<String>()
         val dir = File(cacheDir, "commons_food_photos").apply { mkdirs() }
