@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -72,6 +73,7 @@ private fun AllineatApp() {
     var photoCredits by remember { mutableStateOf<List<String>>(emptyList()) }
     var missingPhotos by remember { mutableStateOf<List<String>>(emptyList()) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     MaterialTheme(colorScheme = lightColorScheme(
         primary = androidx.compose.ui.graphics.Color(0xFF28745B),
@@ -179,7 +181,7 @@ private fun AllineatApp() {
                         missingPhotos = emptyList()
                         photoStatus = "正在获取真实食材照片并进行本地合成……"
                         scope.launch {
-                            val photoResult = FoodPhotoComposer.create(selected, cacheDir)
+                            val photoResult = FoodPhotoComposer.create(selected.map { IngredientPhotoInput(it.food.name, it.amount) }, context.cacheDir)
                             dishImage = photoResult.bitmap?.asImageBitmap()
                             photoCredits = photoResult.credits
                             missingPhotos = photoResult.missing
