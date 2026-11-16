@@ -179,7 +179,7 @@ private fun AllineatApp() {
                         dishImage = null
                         photoCredits = emptyList()
                         missingPhotos = emptyList()
-                        photoStatus = "正在获取真实食材照片并进行本地合成……"
+                        photoStatus = "正在获取真实食材照片并整理预览……"
                         scope.launch {
                             val photoResult = FoodPhotoComposer.create(selected.map { IngredientPhotoInput(it.food.name, it.amount) }, context.cacheDir)
                             dishImage = photoResult.bitmap?.asImageBitmap()
@@ -188,9 +188,9 @@ private fun AllineatApp() {
                             photoStatus = if (photoResult.bitmap == null) {
                                 "没有找到可用且许可信息明确的食材照片。请联网后重试，或减少食材种类。"
                             } else if (photoResult.missing.isNotEmpty()) {
-                                "已合成有照片的食材；以下食材缺少素材：" + photoResult.missing.joinToString("、")
+                                "已整理找到照片的食材；以下食材缺少素材：" + photoResult.missing.joinToString("、")
                             } else {
-                                "已使用真实食材照片完成本地合成。此图是食材照片组合，不是烹饪成品的真实摄影。"
+                                "下方为真实食材照片预览，按食材分别展示；不是烹饪成品照片。"
                             }
                         }
                     },
@@ -205,7 +205,7 @@ private fun AllineatApp() {
                 if (result.isNotBlank()) {
                     Card(shape = RoundedCornerShape(18.dp)) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                            Text("生成结果", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            Text("生成结果 · 食材实景预览", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             DishPhoto(dishImage, photoStatus)
                             if (photoCredits.isNotEmpty()) {
                                 Text("照片来源与许可", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
@@ -235,7 +235,7 @@ private fun DishPhoto(image: ImageBitmap?, status: String) {
         if (image != null) {
             Image(
                 bitmap = image,
-                contentDescription = "根据所选食材照片本地合成的组合图",
+                contentDescription = "所选食材的真实照片分项预览",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
